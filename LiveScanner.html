@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="no-referrer">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>المسح المباشر لشهادة الميلاد | كاميرا الهاتف</title>
+  <style>
+    :root{--t:#0f766e;--d:#134e4a;--ink:#163142;--mut:#5e7380;--bg:#f1f8f8;--b:#dbe8e8}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Tahoma,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6}
+    header{background:linear-gradient(120deg,var(--t),var(--d));color:white;padding:18px 14px 29px}
+    .wrap{max-width:720px;margin:auto}
+    h1{font-size:22px;margin:0 0 3px} header p{margin:0;opacity:.92;font-size:13px}
+    main{padding:0 12px 20px;max-width:720px;margin:-12px auto 0}
+    .card{background:white;border:1px solid var(--b);border-radius:17px;padding:15px;margin-bottom:14px;box-shadow:0 7px 22px #134e4a0d}
+    .camera{position:relative;overflow:hidden;background:#05111b;border-radius:12px;min-height:220px;aspect-ratio:4/3;display:grid;place-items:center}
+    video{width:100%;height:100%;object-fit:cover;display:block}
+    .frame{pointer-events:none;position:absolute;inset:8% 9%;border:3px solid #78e6d3;border-radius:14px;box-shadow:0 0 0 999px #0004}
+    .frame:after{content:'ضع شهادة الميلاد داخل الإطار';position:absolute;bottom:6px;right:6px;left:6px;text-align:center;background:#072b30bf;color:white;border-radius:8px;padding:3px 5px;font-size:12px}
+    .buttons{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}
+    button{border:0;cursor:pointer;border-radius:11px;padding:12px 14px;font-size:14px;font-weight:bold;font-family:inherit;min-height:44px}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    .primary{background:var(--t);color:#fff;flex:1}
+    .secondary{background:#e3f3f1;color:var(--d)}
+    .info{font-size:13px;color:var(--mut);margin:10px 0}
+    .status{background:#eef9fd;color:#155e75;padding:10px 12px;border-radius:10px;margin:12px 0;font-size:14px;white-space:pre-wrap}
+    .status.success{background:#e8f9ee;color:#166534}
+    .status.error{background:#fff0f0;color:#a11b3c}
+    .badge{display:inline-block;border-radius:7px;background:#e0f5f2;color:#115e59;font-size:12px;padding:3px 8px}
+    .meter{height:6px;background:#e2e8f0;border-radius:20px;overflow:hidden;margin:8px 0}
+    .bar{height:100%;width:0%;transition:width .22s;background:#14b8a6}
+    details{font-size:12px;color:var(--mut);margin-top:12px}
+    summary{cursor:pointer;font-weight:bold}
+    textarea{margin:9px 0;width:100%;min-height:95px;border:1px solid var(--b);border-radius:9px;padding:9px;font:13px Tahoma,Arial,sans-serif;direction:rtl;resize:vertical}
+    footer{padding:8px 18px 23px;color:var(--mut);font-size:12px;text-align:center}
+    @media(max-width:460px){.card{padding:12px}.camera{min-height:190px}.buttons button{flex:1}}
+  </style>
+  <!-- مكتبة OCR فقط. تتعرف على النص داخل المتصفح ولا ترسل صورة الشهادة إلى هذا الخادم. -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js" defer></script>
+</head>
+<body>
+<header><div class="wrap"><h1>📷 مسح شهادة الميلاد مباشرة</h1><p>لا تحتاج إلى التقاط صورة — القراءة أثناء عرض الشهادة أمام الكاميرا</p></div></header>
+<main>
+<section class="card">
+  <p class="info">وجّه كاميرا الهاتف الخلفية إلى الشهادة، وثبّتها كاملة داخل الإطار. يعمل OCR على جهازك؛ لن نحفظ صور الفيديو.</p>
+  <div class="camera"><video id="video" muted playsinline autoplay></video><div class="frame" aria-hidden="true"></div></div>
+  <div class="buttons">
+    <button id="start" class="primary" type="button">▶ بدء القراءة التلقائية</button>
+    <button id="stop" class="secondary" type="button" disabled>■ إيقاف الكاميرا</button>
+  </div>
+  <div class="meter" aria-hidden="true"><div class="bar" id="meter"></div></div>
+  <p class="info" id="counter">مرات القراءة: 0 — يُرسَل النص عند اكتشاف الرقم القومي، أو يمكنك إرساله يدويًا.</p>
+  <div class="status" role="status" aria-live="polite" id="status">اضغط «بدء القراءة التلقائية»، واسمح باستخدام الكاميرا عند طلب المتصفح.</div>
+  <div class="buttons">
+    <button id="send" class="secondary" type="button" disabled>✔ إرسال النص المقروء للمراجعة</button>
+    <button id="copy" class="secondary" type="button" disabled>نسخ النص كبديل</button>
+  </div>
+  <details><summary>النص المستخرج للمعاينة عند الحاجة</summary><textarea readonly id="text" aria-label="النص المقروء"></textarea></details>
+</section>
+<section class="card info"><span class="badge">خصوصية</span> الفيديو والإطارات تُعالَج داخل ذاكرة الهاتف ولا تُرفَع إلى Google Drive. عند الإرسال ينتقل <strong>النص المقروء فقط</strong> إلى تطبيق المدرسة المفتوح، ولا يُحفظ طالب في Google Sheets إلا بعد مراجعتك وضغط «حفظ».</section>
+</main>
+<footer>إذا لم تفتح الصفحة من تطبيق تسجيل الطلاب، انسخ النص من هنا ثم الصقه داخل التطبيق.</footer>
+<script>
+(() => {
+  'use strict';
+  const $=id=>document.getElementById(id);
+  const args=new URLSearchParams(location.search);
+  const session=args.get('session')||'';
+  let origin='';
+  try{
+    const u=new URL(args.get('origin')||'');
+    // الوجهة: نافذة Google Apps Script الأصلية فقط، منع الإرسال لأي موقع آخر.
+    if(u.protocol==='https:' && /^([a-z0-9-]+\.)*googleusercontent\.com$/i.test(u.hostname)) origin=u.origin;
+  }catch(_){ /* الوضع اليدوي بدون اتصال */ }
+  let stream=null,worker=null,active=false,processing=false,ocrCount=0,lastText='',bestText='',bestScore=0,hitId='',hitCount=0,ended=false,acknowledged=false;
+  const canReturn=()=>!!(session&&origin&&window.opener&&!window.opener.closed);
+  function msg(s,type='info'){$('status').textContent=s;$('status').className='status '+type}
+  function buttons(){ $('start').disabled=active; $('stop').disabled=!active; $('send').disabled=!bestText; $('copy').disabled=!bestText; }
+  function norm(s){return String(s||'').replace(/[\u0660-\u0669\u06f0-\u06f9]/g,c=>{const n=c.charCodeAt(0);return ''+(n<=0x0669?n-0x0660:n-0x06f0)}).replace(/[\u200e\u200f]/g,'')}
+  function validId(id){
+    if(!/^[23]\d{13}$/.test(id))return false;
+    const yr=(id[0]==='2'?1900:2000)+Number(id.slice(1,3)),mo=+id.slice(3,5),day=+id.slice(5,7);
+    const d=new Date(Date.UTC(yr,mo-1,day));
+    return d.getUTCFullYear()===yr&&d.getUTCMonth()===mo-1&&d.getUTCDate()===day&&d.getTime()<=Date.now();
+  }
+  function findId(s){
+    const r=/(?:^|[^\d])([23](?:[ \t\-]?\d){13})(?!\d)/g;let m;
+    while((m=r.exec(norm(s)))!==null){const id=m[1].replace(/\D/g,'');if(validId(id))return id;}
+    return '';
+  }
+  function scoreText(s){const ar=(s.match(/[\u0621-\u064a]/g)||[]).length;return ar+((findId(s))?150:0)+Math.min(s.length,2000)/20;}
+  function stopCamera(){
+    active=false;
+    if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+    $('video').srcObject=null;buttons();
+  }
+  async function shutdown(){stopCamera();if(worker){const w=worker;worker=null;try{await w.terminate()}catch(_){}}}
+  async function submit(){
+    if(!bestText||ended)return;
+    if(!canReturn()){
+      msg('تعذر الاتصال تلقائيًا بتبويب التطبيق. اضغط «نسخ النص» ثم ارجع إلى التطبيق والصقه في خانة «لصق نص OCR».','error');
+      return;
+    }
+    ended=true;
+    stopCamera();
+    try{
+      window.opener.postMessage({type:'BIRTH_CERT_LIVE_OCR_RESULT',session:session,text:bestText.slice(0,12000)},origin);
+      msg('أُرسِل النص إلى التطبيق؛ جارٍ تأكيد الاستلام…','info');
+      setTimeout(()=>{
+        if(ended&&!acknowledged){ended=false;msg('لم يصل تأكيد من تبويب التطبيق. يمكنك إعادة إرسال النص أو نسخه يدويًا.','error')}
+      },2500);
+    }catch(_){ended=false;msg('تعذر إرسال النتيجة. استخدم زر نسخ النص.','error')}
+  }
+  async function recognizeLoop(){
+    while(active&&!ended){
+      if(processing){await new Promise(r=>setTimeout(r,200));continue;}
+      processing=true;
+      try{
+        const v=$('video');
+        if(!v.videoWidth||!v.videoHeight){await new Promise(r=>setTimeout(r,450));continue;}
+        const lim=1700,sc=Math.min(1,lim/Math.max(v.videoWidth,v.videoHeight));
+        const c=document.createElement('canvas');c.width=Math.round(v.videoWidth*sc);c.height=Math.round(v.videoHeight*sc);
+        const ctx=c.getContext('2d',{willReadFrequently:true});
+        ctx.filter='grayscale(1) contrast(1.2)';ctx.drawImage(v,0,0,c.width,c.height);
+        if(!worker)break;
+        msg('تتم قراءة الإطار '+(ocrCount+1)+'… ثبّت الشهادة داخل المستطيل.');
+        const out=await worker.recognize(c);
+        c.width=0;c.height=0; // تحرير البكسلات من الذاكرة
+        if(!active||ended)break;
+        ocrCount++;
+        lastText=(out?.data?.text||'').trim().slice(0,12000);
+        if(scoreText(lastText)>bestScore){bestText=lastText;bestScore=scoreText(lastText);$('text').value=bestText;}
+        const id=findId(lastText);
+        $('counter').textContent='مرات القراءة: '+ocrCount+(id?' — تم التعرف على رقم قومي محتمل':' — حرك الشهادة قليلًا ثم ثبّتها');
+        buttons();
+        if(id){hitCount=id===hitId?hitCount+1:1;hitId=id;}
+        else{hitCount=0;hitId='';}
+        // بعد قراءتين متطابقتين في الرقم، نرسل النص الأعلى جودة، دون حفظ صورة.
+        if(id&&hitCount>=2){
+          if(scoreText(lastText)>=bestScore){bestText=lastText;$('text').value=bestText;}
+          await submit();break;
+        }
+        msg(id?'ظهر رقم قومي محتمل. استمر في تثبيت الشهادة للتأكيد قبل الإرسال.':'لم يظهر رقم قومي واضح بعد؛ قرّب الشهادة مع إظهار النص كاملًا.');
+      }catch(err){
+        msg('حدث خطأ أثناء تحليل الإطار: '+(err?.message||String(err)),'error');
+        stopCamera();break;
+      }finally{processing=false}
+      if(active)await new Promise(r=>setTimeout(r,600));
+    }
+  }
+  $('start').addEventListener('click',async()=>{
+    if(active)return;
+    if(!navigator.mediaDevices?.getUserMedia){msg('المتصفح لا يدعم فتح الكاميرا هنا. افتح الصفحة في Chrome أو Safari عبر HTTPS.','error');return;}
+    ended=false;acknowledged=false;ocrCount=0;bestText='';bestScore=0;lastText='';hitId='';hitCount=0;
+    $('text').value='';$('meter').style.width='0%';
+    try{
+      msg('جارٍ طلب إذن الكاميرا…');
+      // الطلب صادر من نافذة HTTPS مستقلة، وليس داخل iframe الخاص بـ Apps Script.
+      stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
+      $('video').srcObject=stream;await $('video').play();active=true;buttons();
+      msg('جارٍ تحميل نموذج قراءة العربية والإنجليزية… للمرة الأولى يحتاج تنزيل ملفات.');
+      if(!window.Tesseract?.createWorker)throw new Error('لم يتم تحميل مكتبة OCR. تحقق من اتصال الإنترنت أو إعدادات حظر السكربتات.');
+      if(!worker){
+        worker=await Tesseract.createWorker('ara+eng',1,{logger:m=>{
+          if(m.status==='recognizing text'&&active){$('meter').style.width=Math.round((m.progress||0)*100)+'%';}
+        }});
+        await worker.setParameters({tessedit_pageseg_mode:'11',preserve_interword_spaces:'1'});
+      }
+      if(!active)return;
+      msg('الكاميرا جاهزة. وجّهها الآن للشهادة وثبّتها.');
+      recognizeLoop();
+    }catch(err){
+      msg('تعذر بدء الكاميرا أو OCR: '+(err?.message||String(err))+'. تحقق من السماح بالكاميرا واستخدم Chrome/Safari من رابط HTTPS.','error');
+      stopCamera();
+    }
+  });
+  $('stop').addEventListener('click',()=>{stopCamera();msg('تم إيقاف الكاميرا. يمكن إرسال آخر قراءة أو بدء قراءة جديدة.');});
+  $('send').addEventListener('click',()=>submit());
+  $('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(bestText);msg('تم نسخ النص. ارجع إلى التطبيق وألصقه في خانة «لصق نص OCR».','success')}catch(_){$('text').focus();$('text').select();msg('حدد النص في المربع وانسخه يدويًا.','info')}});
+  window.addEventListener('message',event=>{
+    if(event.origin!==origin||event.source!==window.opener||!session)return;
+    if(event.data?.type!=='BIRTH_CERT_LIVE_OCR_ACK'||event.data.session!==session)return;
+    acknowledged=true;ended=true;
+    msg('تم تسليم النص للتطبيق. ارجع إلى تبويب المدرسة للمراجعة.','success');
+    shutdown().then(()=>window.close());
+  });
+  window.addEventListener('pagehide',()=>{shutdown()});
+  buttons();
+  if(!canReturn())msg('هذه نافذة المسح المستقلة. للربط التلقائي افتحها من زر «المسح المباشر» داخل تطبيق المدرسة. يمكنك أيضًا نسخ النص يدويًا.');
+})();
+</script>
+</body>
+</html>
